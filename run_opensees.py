@@ -19,6 +19,7 @@ def main(soil_csv, motion_acc, dt_str, npts_str, output_dir):
     dt = float(dt_str)
     npts = int(npts_str)
 
+    print(f"openseespy version: {ops.version()}")
     os.makedirs(output_dir, exist_ok=True)
     ops.wipe()
 

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
 # Install system dependencies for matplotlib and OpenSees
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python -c "import openseespy.opensees as ops; print('openseespy', ops.version())"
 
 COPY . .
 
