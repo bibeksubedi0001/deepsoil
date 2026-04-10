@@ -62,6 +62,34 @@
                 </div>
             </div>
 
+            <!-- Format Guide -->
+            <details class="format-guide">
+                <summary>
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    How to prepare soil layer data
+                </summary>
+                <div class="format-guide-body">
+                    <p><strong>Manual entry:</strong> Click "Add Layer" and fill each row. Required fields:</p>
+                    <table class="format-example-table">
+                        <thead><tr><th>Field</th><th>Description</th><th>Example</th></tr></thead>
+                        <tbody>
+                            <tr><td>Type</td><td>Sand, Silt, Clay, or Gravel</td><td>Sand</td></tr>
+                            <tr><td>Thick (m)</td><td>Layer thickness in meters</td><td>2.5</td></tr>
+                            <tr><td>Unit Wt (kN/m&sup3;)</td><td>Total unit weight</td><td>18.0</td></tr>
+                            <tr><td>Vs (m/s)</td><td>Shear wave velocity</td><td>180</td></tr>
+                            <tr><td>SPT N</td><td>SPT blow count (0 if unknown)</td><td>15</td></tr>
+                        </tbody>
+                    </table>
+                    <p style="margin-top:8px"><strong>CSV upload:</strong> Upload a <code>.csv</code> with these columns (header row required):</p>
+                    <pre class="format-sample">Type,Thickness,UnitWeight,Vs,N
+Sand,2.0,17.5,150,10
+Clay,3.5,16.8,120,5
+Sand,4.0,18.5,220,25
+Silt,2.5,17.0,160,12</pre>
+                    <p class="format-note">Layers are ordered top &rarr; bottom. The last layer sits on elastic bedrock. Water table depth is set separately below.</p>
+                </div>
+            </details>
+
             <!-- CSV drop zone (compact) -->
             <div class="csv-drop-zone" id="csvDropZone">
                 <svg class="csv-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -127,6 +155,42 @@
                 </svg>
                 <h2>Earthquake Motion</h2>
             </div>
+
+            <details class="format-guide">
+                <summary>
+                    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-3px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    Accepted earthquake file formats
+                </summary>
+                <div class="format-guide-body">
+                    <p>Upload a ground motion time-history file (<code>.txt</code>, <code>.l</code>, <code>.acc</code>, <code>.dat</code>). Three formats are auto-detected:</p>
+                    <div class="format-block">
+                        <strong>Format 1 &mdash; NPTS + DT header (recommended)</strong>
+                        <pre class="format-sample">4096  0.005
+0.00000  -0.00123
+0.00500  -0.00256
+0.01000   0.00198
+...</pre>
+                        <span class="format-label">Line 1: number_of_points &nbsp; dt (seconds). Remaining lines: time (s) &nbsp; acceleration (g).</span>
+                    </div>
+                    <div class="format-block">
+                        <strong>Format 2 &mdash; Two-column (time, accel)</strong>
+                        <pre class="format-sample">0.000  -0.00123
+0.005  -0.00256
+0.010   0.00198
+...</pre>
+                        <span class="format-label">dt is inferred from the first two time values. Units auto-detected: g, m/s&sup2;, or cm/s&sup2;.</span>
+                    </div>
+                    <div class="format-block">
+                        <strong>Format 3 &mdash; Single-column acceleration</strong>
+                        <pre class="format-sample">-0.00123
+-0.00256
+ 0.00198
+...</pre>
+                        <span class="format-label">One acceleration value per line (in g). Requires constant dt = 0.01 s (default).</span>
+                    </div>
+                    <p class="format-note">Files with acceleration &gt; 50 are treated as cm/s&sup2;; &gt; 2.0 as m/s&sup2;; otherwise as g. PGA and duration are shown after upload.</p>
+                </div>
+            </details>
 
             <div class="upload-zone" id="uploadZone">
                 <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
