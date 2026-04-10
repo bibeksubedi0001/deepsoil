@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Earthquakes - 1D Site Response</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        .live-layout { display: grid; grid-template-columns: 1fr 380px; gap: 20px; min-height: calc(100vh - 72px); }
+        @media (max-width: 1000px) { .live-layout { grid-template-columns: 1fr; } }
+        .map-wrap { border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); min-height: 500px; position: relative; }
+        #map { width: 100%; height: 100%; min-height: 500px; background: #ffffff; }
+        .sidebar { display: flex; flex-direction: column; gap: 16px; max-height: calc(100vh - 90px); }
+        .feed-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+        .feed-controls .chip { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+            border: 1px solid var(--border); background: transparent; color: var(--text-dim); cursor: pointer; transition: all 0.15s; }
+        .feed-controls .chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .feed-controls .chip:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+        .eq-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+        .eq-item { padding: 10px 12px; border-radius: 8px; background: var(--bg-input); border: 1px solid var(--border);
+            cursor: pointer; transition: all 0.15s; display: grid; grid-template-columns: 42px 1fr auto; gap: 10px; align-items: center; }
+        .eq-item:hover, .eq-item.selected { border-color: var(--accent); background: var(--accent-subtle); }
+        .eq-mag { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.95rem; color: #fff; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+        .eq-mag.low { background: #2d6a4f; }
+        .eq-mag.med { background: #e9c46a; color: #1a1d27; }
+        .eq-mag.high { background: #e76f51; }
+        .eq-mag.major { background: #d62828; }
+        .eq-place { font-size: 0.82rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+        .eq-time { font-size: 0.68rem; color: var(--text-dim); margin-top: 2px; }
+        .eq-depth-badge { font-size: 0.68rem; color: var(--text-dim); text-align: right; white-space: nowrap; }
+        .eq-depth-badge strong { display: block; font-size: 0.82rem; color: var(--text); }
+        .detail-panel { display: none; }
+        .detail-panel.visible { display: block; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+        .detail-stat { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+        .detail-stat .val { font-size: 1.1rem; font-weight: 700; color: var(--accent); }
+        .detail-stat .lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .refresh-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 0.75rem; color: var(--text-dim); }
+        .refresh-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .nepal-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px;
+            background: rgba(248,113,113,0.12); color: var(--danger); font-size: 0.65rem; font-weight: 600; }
+        .chart-mini { height: 180px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+        .chart-mini canvas { width: 100% !important; height: 100% !important; }
+        /* Leaflet tiles — no filter needed for B&W on white */
+        .leaflet-tile-pane { filter: grayscale(1); }
+        .leaflet-control-attribution { display: none; }
+        .leaflet-popup-content-wrapper { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); border-radius: 8px; }
+        .leaflet-popup-tip { background: var(--bg-card); }
+        .leaflet-popup-content { font-family: 'Inter', sans-serif; font-size: 0.82rem; margin: 10px 14px; }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" color="#4f8cff">
+        <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/>
+    </svg>
+    <div>
+        <h1>Live Earthquake Monitor</h1>
+        <div class="subtitle">USGS real-time seismic data feed</div>
+    </div>
+    <div style="margin-left:auto">
+        <a href="/" class="btn btn-outline btn-sm">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Analysis
+        </a>
+    </div>
+</div>
+
+<div class="container" style="padding-top:16px">
+    <div class="live-layout">
+
+        <!-- Map -->
+        <div class="map-wrap">
+            <div id="map"></div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="card" style="padding:14px 16px">
+                <div class="refresh-bar">
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <div class="dot"></div>
+                        <span>Auto-refresh every 60s</span>
+                    </div>
+                    <span id="lastUpdate">--</span>
+                </div>
+            </div>
+
+            <div class="card" style="padding:14px 16px;flex-shrink:0">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;color:var(--accent)">
+                        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                    </svg>
+                    <span style="font-weight:600;font-size:0.88rem">Time Range</span>
+                </div>
+                <div class="feed-controls" id="feedControls">
+                    <button class="chip" data-feed="hour">Past Hour</button>
+                    <button class="chip active" data-feed="day">Past Day</button>
+                    <button class="chip" data-feed="week">Past 7 Days</button>
+                    <button class="chip" data-feed="month">Past 30 Days</button>
+                </div>
+                <div class="feed-controls" style="margin-top:6px" id="magControls">
+                    <button class="chip active" data-mag="significant">Significant</button>
+                    <button class="chip" data-mag="4.5">M 4.5+</button>
+                    <button class="chip" data-mag="2.5">M 2.5+</button>
+                    <button class="chip" data-mag="1.0">M 1.0+</button>
+                    <button class="chip" data-mag="all">All</button>
+                </div>
+            </div>
+
+            <!-- Earthquake Feed -->
+            <div class="card" style="padding:14px 16px;flex:1;overflow:hidden;display:flex;flex-direction:column">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                    <span style="font-weight:600;font-size:0.88rem" id="feedTitle">Recent Earthquakes</span>
+                    <span style="font-size:0.72rem;color:var(--text-dim)" id="feedCount">0 events</span>
+                </div>
+                <div class="eq-feed" id="eqFeed">
+                    <div class="empty-state">Loading earthquake data...</div>
+                </div>
+            </div>
+
+            <!-- Detail Panel -->
+            <div class="card detail-panel" id="detailPanel" style="padding:14px 16px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <span style="font-weight:700;font-size:0.95rem" id="detailTitle">--</span>
+                    <button class="btn btn-danger" onclick="closeDetail()" style="padding:3px 8px">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="detail-grid" id="detailGrid"></div>
+                <div class="chart-mini"><canvas id="depthChart"></canvas></div>
+                <div style="margin-top:10px;text-align:center">
+                    <a id="usgsLink" href="#" target="_blank" class="btn btn-outline btn-sm">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        View on USGS
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+"use strict";
+
+const FEEDS = {
+    "significant_hour": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_hour.geojson",
+    "significant_day":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_day.geojson",
+    "significant_week": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_week.geojson",
+    "significant_month":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/significant_month.geojson",
+    "4.5_hour": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_hour.geojson",
+    "4.5_day":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson",
+    "4.5_week": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_week.geojson",
+    "4.5_month":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_month.geojson",
+    "2.5_hour": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_hour.geojson",
+    "2.5_day":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson",
+    "2.5_week": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_week.geojson",
+    "2.5_month":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_month.geojson",
+    "1.0_hour": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/1.0_hour.geojson",
+    "1.0_day":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/1.0_day.geojson",
+    "1.0_week": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/1.0_week.geojson",
+    "1.0_month":"https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/1.0_month.geojson",
+    "all_hour":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson",
+    "all_day":   "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+    "all_week":  "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_week.geojson",
+    "all_month": "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson",
+};
+
+let currentMag = "significant";
+let currentTime = "day";
+let map, markersLayer, depthChart;
+let allFeatures = [];
+
+function magColor(m) {
+    if (m >= 7) return "#d62828";
+    if (m >= 5) return "#e76f51";
+    if (m >= 3) return "#e9c46a";
+    return "#2d6a4f";
+}
+function magClass(m) {
+    if (m >= 7) return "major";
+    if (m >= 5) return "high";
+    if (m >= 3) return "med";
+    return "low";
+}
+function magRadius(m) {
+    if (m >= 7) return 18;
+    if (m >= 5) return 13;
+    if (m >= 3) return 9;
+    return 6;
+}
+function timeAgo(ms) {
+    const s = Math.floor((Date.now() - ms) / 1000);
+    if (s < 60) return s + "s ago";
+    if (s < 3600) return Math.floor(s/60) + "m ago";
+    if (s < 86400) return Math.floor(s/3600) + "h ago";
+    return Math.floor(s/86400) + "d ago";
+}
+function isNearNepal(lat, lon) {
+    return lat >= 26 && lat <= 31 && lon >= 80 && lon <= 89;
+}
+
+// Map setup
+function initMap() {
+    map = L.map("map", { zoomControl: true, attributionControl: false }).setView([28.2, 84.5], 4);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+
+    // Nepal bounding box highlight
+    L.rectangle([[26, 80], [31, 89]], {
+        color: "#f87171", weight: 1.5, fillColor: "#f87171", fillOpacity: 0.04, dashArray: "6 4"
+    }).addTo(map).bindTooltip("Nepal", { permanent: true, direction: "center",
+        className: "nepal-tooltip" });
+}
+
+async function fetchFeed() {
+    const key = currentMag + "_" + currentTime;
+    const url = FEEDS[key];
+    if (!url) return;
+
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        allFeatures = data.features || [];
+        document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
+        renderFeed();
+        renderMap();
+    } catch (e) {
+        document.getElementById("eqFeed").innerHTML = '<div class="empty-state">Failed to load earthquake data. Check your internet connection.</div>';
+    }
+}
+
+function renderFeed() {
+    const feed = document.getElementById("eqFeed");
+    const count = document.getElementById("feedCount");
+    count.textContent = allFeatures.length + " event" + (allFeatures.length !== 1 ? "s" : "");
+
+    if (!allFeatures.length) {
+        feed.innerHTML = '<div class="empty-state">No earthquakes found for this filter.</div>';
+        return;
+    }
+
+    feed.innerHTML = allFeatures.slice(0, 200).map((f, i) => {
+        const p = f.properties;
+        const c = f.geometry.coordinates;
+        const mag = (p.mag || 0).toFixed(1);
+        const nepal = isNearNepal(c[1], c[0]);
+        return `<div class="eq-item" data-idx="${i}" onclick="selectEq(${i})">
+            <div class="eq-mag ${magClass(p.mag)}">${mag}</div>
+            <div>
+                <div class="eq-place">${p.place || "Unknown"}${nepal ? ' <span class="nepal-badge">Nepal region</span>' : ''}</div>
+                <div class="eq-time">${timeAgo(p.time)}</div>
+            </div>
+            <div class="eq-depth-badge"><strong>${c[2].toFixed(1)} km</strong>depth</div>
+        </div>`;
+    }).join("");
+}
+
+function renderMap() {
+    markersLayer.clearLayers();
+    allFeatures.forEach((f, i) => {
+        const p = f.properties;
+        const c = f.geometry.coordinates;
+        const mag = p.mag || 0;
+        const circle = L.circleMarker([c[1], c[0]], {
+            radius: magRadius(mag),
+            fillColor: magColor(mag),
+            color: "#fff",
+            weight: 1,
+            fillOpacity: 0.8,
+        });
+        circle.bindPopup(`<strong>M ${mag.toFixed(1)}</strong> &mdash; ${p.place || "Unknown"}<br>
+            Depth: ${c[2].toFixed(1)} km<br>
+            ${new Date(p.time).toLocaleString()}`);
+        circle.on("click", () => selectEq(i));
+        markersLayer.addLayer(circle);
+    });
+}
+
+function selectEq(idx) {
+    const f = allFeatures[idx];
+    if (!f) return;
+    const p = f.properties;
+    const c = f.geometry.coordinates;
+
+    // Highlight in feed
+    document.querySelectorAll(".eq-item").forEach(el => el.classList.remove("selected"));
+    const item = document.querySelector(`.eq-item[data-idx="${idx}"]`);
+    if (item) { item.classList.add("selected"); item.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+
+    // Pan map
+    map.flyTo([c[1], c[0]], 6, { duration: 0.8 });
+
+    // Detail panel
+    const panel = document.getElementById("detailPanel");
+    panel.classList.add("visible");
+    document.getElementById("detailTitle").textContent = `M ${(p.mag||0).toFixed(1)} - ${p.place || "Unknown"}`;
+    document.getElementById("usgsLink").href = p.url || "#";
+
+    const nepal = isNearNepal(c[1], c[0]);
+    document.getElementById("detailGrid").innerHTML = `
+        <div class="detail-stat"><div class="val">${(p.mag||0).toFixed(1)}</div><div class="lbl">Magnitude${p.magType ? ' ('+p.magType+')' : ''}</div></div>
+        <div class="detail-stat"><div class="val">${c[2].toFixed(1)} km</div><div class="lbl">Depth</div></div>
+        <div class="detail-stat"><div class="val">${c[1].toFixed(3)}&deg;</div><div class="lbl">Latitude</div></div>
+        <div class="detail-stat"><div class="val">${c[0].toFixed(3)}&deg;</div><div class="lbl">Longitude</div></div>
+        <div class="detail-stat"><div class="val">${p.mmi ? p.mmi.toFixed(1) : '--'}</div><div class="lbl">MMI Intensity</div></div>
+        <div class="detail-stat"><div class="val">${p.felt || '--'}</div><div class="lbl">Felt Reports</div></div>
+        <div class="detail-stat"><div class="val">${p.tsunami ? 'Yes' : 'No'}</div><div class="lbl">Tsunami Alert</div></div>
+        <div class="detail-stat"><div class="val">${nepal ? '<span class="nepal-badge" style="font-size:0.75rem">Yes</span>' : 'No'}</div><div class="lbl">Nepal Region</div></div>
+    `;
+
+    // Mini depth chart: show this eq in context
+    renderDepthChart(f);
+}
+
+function renderDepthChart(selectedFeature) {
+    const ctx = document.getElementById("depthChart").getContext("2d");
+    if (depthChart) depthChart.destroy();
+
+    // Plot magnitude vs depth for all events, highlight selected
+    const pts = allFeatures.map(f => ({
+        x: f.properties.mag || 0,
+        y: f.geometry.coordinates[2],
+    }));
+    const sel = {
+        x: selectedFeature.properties.mag || 0,
+        y: selectedFeature.geometry.coordinates[2],
+    };
+
+    depthChart = new Chart(ctx, {
+        type: "scatter",
+        data: {
+            datasets: [
+                {
+                    label: "All events",
+                    data: pts,
+                    backgroundColor: "rgba(79,140,255,0.25)",
+                    borderColor: "rgba(79,140,255,0.5)",
+                    pointRadius: 3,
+                },
+                {
+                    label: "Selected",
+                    data: [sel],
+                    backgroundColor: "#f87171",
+                    borderColor: "#fff",
+                    borderWidth: 2,
+                    pointRadius: 8,
+                }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false, animation: false,
+            plugins: { legend: { display: false }, title: { display: true, text: "Magnitude vs Depth", color: "#000", font: { size: 11 } } },
+            scales: {
+                x: { title: { display: true, text: "Magnitude", color: "#444" }, ticks: { color: "#444" }, grid: { color: "#e0e0e0" } },
+                y: { title: { display: true, text: "Depth (km)", color: "#444" }, ticks: { color: "#444" }, grid: { color: "#e0e0e0" }, reverse: true },
+            }
+        }
+    });
+}
+
+function closeDetail() {
+    document.getElementById("detailPanel").classList.remove("visible");
+    document.querySelectorAll(".eq-item").forEach(el => el.classList.remove("selected"));
+}
+
+// Filter controls
+document.getElementById("feedControls").addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    document.querySelectorAll("#feedControls .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    currentTime = chip.dataset.feed;
+    fetchFeed();
+});
+document.getElementById("magControls").addEventListener("click", e => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    document.querySelectorAll("#magControls .chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    currentMag = chip.dataset.mag;
+    fetchFeed();
+});
+
+// Init
+initMap();
+fetchFeed();
+setInterval(fetchFeed, 60000);
+</script>
+</body>
+</html>

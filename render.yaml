@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: deepsoil
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11"
