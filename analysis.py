@@ -92,11 +92,6 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
     opensees_exe = find_opensees()
     tcl_script = get_tcl_script()
 
-    if not tcl_script:
-        result["status"] = "error"
-        result["error"] = "SiteResponse1D.tcl not found"
-        return result
-
     output_dir = os.path.join(run_dir, "output")
     os.makedirs(output_dir, exist_ok=True)
 
@@ -105,8 +100,8 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
     dt = eq_info["dt"]
     npts = eq_info["npts"]
 
-    # Build command: use binary if available, else Python openseespy wrapper
-    if opensees_exe:
+    # Build command: use binary + TCL if available, else Python openseespy
+    if opensees_exe and tcl_script:
         cmd = [
             opensees_exe,
             tcl_script,
@@ -116,19 +111,20 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
             str(npts),
             output_dir,
         ]
+        cwd = os.path.dirname(tcl_script)
     else:
-        # Fallback: use openseespy via run_opensees.py wrapper
+        # Fallback: openseespy via run_opensees.py (Python translation)
         wrapper = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "run_opensees.py")
         cmd = [
             sys.executable, wrapper,
-            tcl_script,
             soil_csv_path,
             acc_file,
             str(dt),
             str(npts),
             output_dir,
         ]
+        cwd = run_dir
 
     try:
         proc = subprocess.run(
@@ -136,7 +132,7 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
             capture_output=True,
             text=True,
             timeout=600,
-            cwd=os.path.dirname(tcl_script),
+            cwd=cwd,
         )
         result["steps"].append({
             "step": "opensees",
