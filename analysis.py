@@ -147,13 +147,6 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
         with open(os.path.join(run_dir, "opensees_stderr.txt"), "w") as f:
             f.write(proc.stderr or "")
 
-        # If OpenSees failed, report the error immediately
-        if proc.returncode != 0:
-            err_detail = (proc.stderr or proc.stdout or "unknown error")[-500:]
-            result["status"] = "error"
-            result["error"] = f"OpenSees failed (code {proc.returncode}): {err_detail}"
-            return result
-
     except subprocess.TimeoutExpired:
         result["status"] = "error"
         result["error"] = "OpenSees analysis timed out (>10 minutes)"

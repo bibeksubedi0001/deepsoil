@@ -19,7 +19,6 @@ def main(soil_csv, motion_acc, dt_str, npts_str, output_dir):
     dt = float(dt_str)
     npts = int(npts_str)
 
-    print(f"openseespy version: {ops.version()}")
     os.makedirs(output_dir, exist_ok=True)
     ops.wipe()
 
@@ -141,7 +140,7 @@ def main(soil_csv, motion_acc, dt_str, npts_str, output_dir):
                            rho, G0, K_bulk, phi, peak_str, p_ref, press_coef, pt_ang,
                            0.21, 0.0, 0.0,
                            0.0, 0.0, 0.0,
-                           0)
+                           20)
 
         elif stype == "silt":
             args = [s.strip() for s in lay["hyst_args"].split(",")]
@@ -153,7 +152,7 @@ def main(soil_csv, motion_acc, dt_str, npts_str, output_dir):
             peak_str = 0.1
             ops.nDMaterial("PressureIndependMultiYield", mat_tag, 2,
                            dens, G0, K_bulk, cohesion, peak_str,
-                           0.0, 101325.0, 0.0, 0)
+                           0.0, 101325.0, 0.0, 20)
 
         elif stype == "clay":
             args = [s.strip() for s in lay["clay_args"].split(",")]
@@ -173,7 +172,7 @@ def main(soil_csv, motion_acc, dt_str, npts_str, output_dir):
             peak_str = 0.1
             ops.nDMaterial("PressureIndependMultiYield", mat_tag, 2,
                            dens, G0, K_bulk, cohesion, peak_str,
-                           0.0, 101325.0, 0.0, 0)
+                           0.0, 101325.0, 0.0, 20)
 
         print(f"  Mat {mat_tag}: {stype} (Vs={vs:.0f} m/s, rho={dens:.0f} kg/m3)")
 

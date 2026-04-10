@@ -3,4 +3,4 @@ numpy>=1.24
 matplotlib>=3.7
 werkzeug>=3.0
 gunicorn>=21.2
-openseespy==3.8.0.0
+openseespy>=3.7.0
