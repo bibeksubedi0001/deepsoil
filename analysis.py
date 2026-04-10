@@ -6,6 +6,7 @@ invokes OpenSees, and post-processes results.
 import os
 import subprocess
 import shutil
+import sys
 
 from soil_params import build_soil_csv
 from earthquake_fmt import format_earthquake
@@ -91,12 +92,6 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
     opensees_exe = find_opensees()
     tcl_script = get_tcl_script()
 
-    if not opensees_exe:
-        result["status"] = "error"
-        result["error"] = ("OpenSees executable not found. "
-                           "Place OpenSees.exe in OpenSees3.8.0/bin/ or add to PATH.")
-        return result
-
     if not tcl_script:
         result["status"] = "error"
         result["error"] = "SiteResponse1D.tcl not found"
@@ -110,15 +105,30 @@ def run_analysis(run_id: str, soil_layers: list, earthquake_path: str,
     dt = eq_info["dt"]
     npts = eq_info["npts"]
 
-    cmd = [
-        opensees_exe,
-        tcl_script,
-        soil_csv_path,
-        acc_file,
-        str(dt),
-        str(npts),
-        output_dir,
-    ]
+    # Build command: use binary if available, else Python openseespy wrapper
+    if opensees_exe:
+        cmd = [
+            opensees_exe,
+            tcl_script,
+            soil_csv_path,
+            acc_file,
+            str(dt),
+            str(npts),
+            output_dir,
+        ]
+    else:
+        # Fallback: use openseespy via run_opensees.py wrapper
+        wrapper = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "run_opensees.py")
+        cmd = [
+            sys.executable, wrapper,
+            tcl_script,
+            soil_csv_path,
+            acc_file,
+            str(dt),
+            str(npts),
+            output_dir,
+        ]
 
     try:
         proc = subprocess.run(

@@ -4,7 +4,8 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc g++ gfortran \
     liblapack-dev libblas-dev \
-    tcl8.6 tcl8.6-dev \
+    libgomp1 \
+    tcl8.6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
