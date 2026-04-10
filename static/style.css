@@ -738,15 +738,15 @@ input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
     align-items: center;
     padding: 3px 12px;
     font-size: 0.72rem;
-    color: white;
+    color: #000000;
     min-height: 22px;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-bottom: 1px solid var(--border);
     font-variant-numeric: tabular-nums;
 }
 
-.soil-layer-bar.sand { background: #b8943a; }
-.soil-layer-bar.silt { background: #7a654a; }
-.soil-layer-bar.clay { background: #5a7d5a; }
+.soil-layer-bar.sand { background: #f0dda0; }
+.soil-layer-bar.silt { background: #e0d0b8; }
+.soil-layer-bar.clay { background: #c8e0c8; }
 
 /* Tabs */
 .tabs {

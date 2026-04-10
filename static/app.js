@@ -89,36 +89,11 @@ async function _doSoilCSVUpload(file) {
             addLayer(l);
         }
 
-        // Flash the CSV drop zone green briefly
-        const zone = $("#csvDropZone");
-        zone.classList.add("success");
-        setTimeout(() => zone.classList.remove("success"), 1500);
-
         toast(`Imported ${data.count} layers (${data.total_depth}m) from ${data.borehole_name}`, "success");
     } catch (e) {
         toast("CSV upload failed: " + e.message, "error");
     }
 }
-
-// Wire up CSV drag-and-drop zone
-document.addEventListener("DOMContentLoaded", () => {
-    const zone = $("#csvDropZone");
-    const dropInput = $("#csvDropInput");
-
-    zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("drag-over"); });
-    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
-    zone.addEventListener("drop", e => {
-        e.preventDefault();
-        zone.classList.remove("drag-over");
-        if (e.dataTransfer.files.length) {
-            _doSoilCSVUpload(e.dataTransfer.files[0]);
-        }
-    });
-    dropInput.addEventListener("change", () => {
-        if (dropInput.files.length) _doSoilCSVUpload(dropInput.files[0]);
-        dropInput.value = "";
-    });
-});
 
 // ──────────────────────────────────────────────────────────
 
